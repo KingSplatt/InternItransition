@@ -7,9 +7,11 @@ public class FairRandomGenerator {
     private int computerNumber;
     private byte[] key;
     private final SecureRandom sRandom = new SecureRandom();
+    private static final int MAGIC_VALUE = 32;
+
 
     public String generateFairRandom(int range){
-        key = new byte[32];
+        key = new byte[MAGIC_VALUE];
         sRandom.nextBytes(key);
         computerNumber = sRandom.nextInt(range);
         try {
@@ -17,19 +19,11 @@ public class FairRandomGenerator {
             SecretKeySpec SPEC = new SecretKeySpec(key, "HmacSHA256");
             mac.init(SPEC);
             byte[] hmacByt = mac.doFinal(String.valueOf(computerNumber).getBytes());
-            HMAC = bytesToHex(hmacByt);
+            HMAC = java.util.HexFormat.of().formatHex(hmacByt).toUpperCase();
         } catch (Exception e) {
             throw new RuntimeException("Error generating HMAC", e);
         }
         return HMAC;
-    }
-
-    private String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
-        }
-        return sb.toString();
     }
 
     public int getFairResult(int userNumber, int range){
@@ -41,7 +35,7 @@ public class FairRandomGenerator {
     }
 
     public String getKey() {
-        return bytesToHex(key);
+        return java.util.HexFormat.of().formatHex(key).toUpperCase();
     }
 
     public String getHMAC() {
