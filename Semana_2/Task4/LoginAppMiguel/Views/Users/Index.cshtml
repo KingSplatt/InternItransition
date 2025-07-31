@@ -1,0 +1,188 @@
+@model LoginAppMiguel.Models.ViewModels.UserManagementViewModel
+@{
+    ViewData["Title"] = "Users Management";
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Users Management</h2>
+        </div>
+        <div class="col-auto">
+            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-secondary ">Logout</button>
+            </form>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Message)){
+        <div class="alert alert-@(Model.MessageType == "error" ? "danger" : Model.MessageType) alert-dismissible fade show" role="alert">
+            @Model.Message
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    <div class="row mb-3">
+        <div class="col">
+            <div class="btn-toolbar" role="toolbar">
+                <div class="btn-group me-2" role="group">
+                    <button type="button" class="btn btn-danger" id="blockBtn" onclick="performAction('block')" disabled>
+                        <i class="fas fa-ban"></i> Block
+                    </button>
+                    <button type="button" class="btn btn-success" id="unblockBtn" onclick="performAction('unblock')" disabled>
+                        <i class="fa-solid fa-unlock"></i>
+                    </button>
+                    <button type="button" class="btn btn-dark" id="deleteBtn" onclick="performAction('delete')" disabled>
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div class="table-responsive rounded">
+                <table class="table table-striped table-hover table-bordered shadow-sm p-3 mb-5 bg-body-tertiary rounded rounded-4">
+                    <thead class="table-dark text-center">
+                        <tr class="text-center" table-border="1">
+                            <th>
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Last Login</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-center">
+                        @if (Model.Users.Any()){
+                            @foreach (var user in Model.Users){
+                                <tr class="@(user.IsBlocked ? "table-warning" : "")">
+                                    <td>
+                                        <input type="checkbox" class="user-checkbox" value="@user.Id" onchange="updateToolbarButtons()">
+                                    </td>
+                                    <td>@user.FullName</td>
+                                    <td>@user.Email</td>
+                                    <td>
+                                        @if (user.LastLoginTime.HasValue){
+                                            @user.LastLoginTime.Value.ToString("dd/MM/yyyy HH:mm:ss")
+                                        }
+                                        else{
+                                            <span class="text-muted">Nunca</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (user.IsBlocked){
+                                            <span class="badge bg-danger">Bloqueado</span>
+                                        }else{
+                                            <span class="badge bg-success">Activo</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else{
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No hay usuarios registrados</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const userCheckboxes = document.querySelectorAll('.user-checkbox');
+            userCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateToolbarButtons();
+        }
+
+        function updateToolbarButtons() {
+            const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+            const hasSelection = checkedBoxes.length > 0;
+            document.getElementById('blockBtn').disabled = !hasSelection;
+            document.getElementById('unblockBtn').disabled = !hasSelection;
+            document.getElementById('deleteBtn').disabled = !hasSelection;
+            const totalCheckboxes = document.querySelectorAll('.user-checkbox').length;
+            const selectAllCheckbox = document.getElementById('selectAll');
+            
+            if (checkedBoxes.length === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (checkedBoxes.length === totalCheckboxes) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        function performAction(action) {
+            const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+            const userIds = Array.from(checkedBoxes).map(cb => cb.value);
+            let actionText = '';
+            switch(action) {
+                case 'block': actionText = 'bloquear'; break;
+                case 'unblock': actionText = 'desbloquear'; break;
+                case 'delete': actionText = 'eliminar'; break;
+            }
+
+            if (!confirm(`Are you sure you want to ${actionText} ${userIds.length} user(s)?`)) {
+                return;
+            }
+
+            const buttons = document.querySelectorAll('#blockBtn, #unblockBtn, #deleteBtn');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> processing...';
+            });
+
+            fetch('@Url.Action("PerformAction", "Users")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                },
+                body: JSON.stringify({
+                    userIds: userIds,
+                    action: action
+                })
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    if (data.redirectToLogin) {
+                        alert(data.message);
+                        window.location.href = '@Url.Action("Login", "Account")';
+                    } else {
+                        // Recargar la página para mostrar los cambios
+                        window.location.reload();
+                    }
+                } else {
+                    alert(data.message);
+                    if (data.redirectToLogin) {
+                        window.location.href = '@Url.Action("Login", "Account")';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ocurrió un error al procesar la solicitud.');
+            })
+            .finally(() => {
+                document.getElementById('blockBtn').innerHTML = '<i class="fas fa-ban"></i> Bloquear';
+                document.getElementById('unblockBtn').innerHTML = '<i class="fas fa-unlock"></i> Desbloquear';
+                document.getElementById('deleteBtn').innerHTML = '<i class="fas fa-trash"></i> Eliminar';
+                updateToolbarButtons();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateToolbarButtons();
+        });
+    </script>
+}

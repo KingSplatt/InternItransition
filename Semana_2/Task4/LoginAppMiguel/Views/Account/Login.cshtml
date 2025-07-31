@@ -1,0 +1,71 @@
+@model LoginAppMiguel.Models.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Sign In";
+}
+
+<div class="row justify-content-center" id="ContainerPro">
+    <div class="col-md-6 col-lg-4" >
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center" id="CardPrincipal">
+                <h4>Sign In</h4>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(TempData["Message"]?.ToString()))
+                {
+                    var messageType = TempData["MessageType"]?.ToString() ?? "danger";
+                    var alertClass = messageType == "error" ? "danger" : messageType;
+
+                    <div class="alert alert-@alertClass alert-dismissible fade show" role="alert">
+                        @TempData["Message"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                
+                <form asp-action="Login" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" placeholder="Enter your email" />
+                        <span asp-validation-for="Email" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label"></label>
+                        <input asp-for="Password" class="form-control" placeholder="Enter your password" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label"></label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary fw-bold">Sign In</button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p>Don't have an account? <a asp-action="Register" class="text-primary">Register here!</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+@section Styles{
+    <style>
+        #CardPrincipal{
+			color: black;
+            background-color: #2EBDF5;
+        }
+        label{
+			font-weight: bold;
+			text-shadow: 0.1px 0.2px 0.1px black;
+        }
+	</style>
+}
