@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LoginAppMiguel")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e1b21b345460913f82a874ab7acac9d63263521c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5afce6a7ca781bced8c12043e09af2b1b1a27984")]
 [assembly: System.Reflection.AssemblyProductAttribute("LoginAppMiguel")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LoginAppMiguel")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
