@@ -1,9 +1,10 @@
 using BookStore.Api.Models;
 using BookStore.Api.Services;
+using CsvHelper;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<BookService>();
 builder.Services.AddCors(options =>
@@ -87,22 +88,19 @@ app.Run();
 
 static string GenerateCSV(List<Book> books)
 {
-    var csv = new System.Text.StringBuilder();
-    csv.AppendLine("Index,ISBN,Title,Author,Publisher,ReviewCount");
-    
-    foreach (var book in books)
+    var csvData = books.Select(book => new
     {
-        csv.AppendLine($"{book.Index},\"{book.ISBN}\",\"{EscapeCSV(book.Title)}\",\"{EscapeCSV(book.Author)}\",\"{EscapeCSV(book.Publisher)}\",{book.Reviews.Count}");
-    }
+        Index = book.Index,
+        ISBN = book.ISBN,
+        Title = book.Title,
+        Author = book.Author,
+        Publisher = book.Publisher,
+        ReviewCount = book.Reviews.Count
+    }).ToList();
     
-    return csv.ToString();
-}
-
-static string EscapeCSV(string field)
-{
-    if (field.Contains("\""))
-    {
-        field = field.Replace("\"", "\"\"");
-    }
-    return field;
+    using var writer = new StringWriter();
+    using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+    csv.WriteRecords(csvData);
+    
+    return writer.ToString();
 }

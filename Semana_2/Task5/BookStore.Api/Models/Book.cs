@@ -11,6 +11,7 @@ public class Book
     public string Publisher { get; set; } = string.Empty;
     public List<Review> Reviews { get; set; } = new();
     public string CoverImageUrl { get; set; } = string.Empty;
+    public int Likes { get; set; }
 }
 
 public class Review

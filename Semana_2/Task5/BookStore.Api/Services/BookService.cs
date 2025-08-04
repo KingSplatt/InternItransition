@@ -10,17 +10,13 @@ public class BookService
     {
         { "en", "en_US" },
         { "de", "de" },
-        { "ja", "ja" },
         { "es", "es" }
     };
 
     public BookResponse GenerateBooks(BookRequest request)
     {
         var locale = _localeMapping.GetValueOrDefault(request.Locale, "en_US");
-        
-        // Crear semilla combinada con página para consistencia
         var combinedSeed = request.Seed + (request.Page * 1000);
-        
         var faker = new Faker<Book>(locale)
             .UseSeed(combinedSeed)
             .RuleFor(b => b.Index, (f, b) => ((request.Page - 1) * request.PageSize) + f.IndexFaker + 1)
@@ -29,31 +25,27 @@ public class BookService
             .RuleFor(b => b.Author, f => GenerateAuthor(f, locale))
             .RuleFor(b => b.Publisher, f => GeneratePublisher(f, locale))
             .RuleFor(b => b.CoverImageUrl, (f, b) => GenerateCoverImage(b.Title, b.Author))
-            .RuleFor(b => b.Reviews, (f, b) => GenerateReviews(f, request.ReviewCount, locale));
-
+            .RuleFor(b => b.Reviews, (f, b) => GenerateReviews(f, request.ReviewCount, locale, request.Likes));
         var books = faker.Generate(request.PageSize);
-
         return new BookResponse
         {
             Books = books,
             CurrentPage = request.Page,
-            HasNextPage = true, // Para infinite scroll siempre hay más páginas
+            HasNextPage = true, 
             TotalPages = int.MaxValue
         };
     }
 
     private string GenerateISBN(Faker faker)
     {
-        // Generar ISBN-13 válido
         var prefix = "978";
         var group = faker.Random.Int(0, 9);
         var publisher = faker.Random.Int(10000, 99999);
         var title = faker.Random.Int(100, 999);
-        
         var isbn12 = $"{prefix}{group}{publisher:D5}{title:D3}";
         var checkDigit = CalculateISBNCheckDigit(isbn12);
-        
-        return $"{prefix}-{group}-{publisher:D5}-{title:D3}-{checkDigit}";
+        var ISBN = $"{prefix}-{group}-{publisher:D5}-{title:D3}-{checkDigit}";
+        return ISBN;
     }
 
     private int CalculateISBNCheckDigit(string isbn12)
@@ -72,7 +64,7 @@ public class BookService
         return locale switch
         {
             "de" => GenerateGermanTitle(faker),
-            "ja" => GenerateJapaneseTitle(faker),
+            "es" => GenerateSpanishTitle(faker),
             _ => GenerateEnglishTitle(faker)
         };
     }
@@ -134,34 +126,6 @@ public class BookService
             .Replace("{place}", faker.PickRandom(places));
     }
 
-    private string GenerateJapaneseTitle(Faker faker)
-    {
-        var templates = new[]
-        {
-            "{adjective}{noun}",
-            "{noun}の{noun2}",
-            "{adjective}{noun}：{genre}小説",
-            "{place}の{noun}",
-            "{noun}を越えて",
-            "最後の{noun}",
-            "{noun}年代記"
-        };
-
-        var adjectives = new[] { "静かな", "隠れた", "失われた", "忘れられた", "古い", "秘密の", "神秘的な", "黄金の", "暗い", "明るい" };
-        var nouns = new[] { "旅", "謎", "冒険", "秘密", "夢", "影", "光", "物語", "伝説", "記憶" };
-        var genres = new[] { "ミステリー", "ロマンス", "スリラー", "ファンタジー", "歴史", "SF" };
-        var places = new[] { "山", "森", "都市", "砂漠", "海", "谷", "城", "庭園" };
-
-        var template = faker.PickRandom(templates);
-        
-        return template
-            .Replace("{adjective}", faker.PickRandom(adjectives))
-            .Replace("{noun}", faker.PickRandom(nouns))
-            .Replace("{noun2}", faker.PickRandom(nouns))
-            .Replace("{genre}", faker.PickRandom(genres))
-            .Replace("{place}", faker.PickRandom(places));
-    }
-
     private string GenerateSpanishTitle(Faker faker)
     {
         var templates = new[]
@@ -196,7 +160,6 @@ public class BookService
         return locale switch
         {
             "de" => $"{faker.Name.FirstName()} {faker.Name.LastName()}",
-            "ja" => $"{faker.Name.LastName()}{faker.Name.FirstName()}",
             "es" => $"{faker.Name.FirstName()} {faker.Name.LastName()}",
             _ => $"{faker.Name.FirstName()} {faker.Name.LastName()}"
         };
@@ -207,7 +170,6 @@ public class BookService
         return locale switch
         {
             "de" => faker.PickRandom(new[] { "Penguin Random House", "Holtzbrinck", "Weltbild", "Bastei Lübbe", "Carlsen Verlag", "Fischer Verlag", "Ullstein Buchverlage", "Rowohlt Verlag" }),
-            "ja" => faker.PickRandom(new[] { "講談社", "集英社", "小学館", "角川書店", "文藝春秋", "新潮社", "岩波書店", "筑摩書房" }),
             "es" => faker.PickRandom(new[] { "Penguin Random House", "Planeta", "Grupo Anaya", "Ediciones SM", "Editorial Espasa", "Alfaguara", "Ediciones Akal", "Editorial Planeta" }),
             _ => faker.PickRandom(new[] { "Penguin Random House", "HarperCollins", "Macmillan", "Simon & Schuster", "Hachette Book Group", "Scholastic", "Wiley", "Pearson Education" })
         };
@@ -215,35 +177,37 @@ public class BookService
 
     private string GenerateCoverImage(string title, string author)
     {
-        // Generar URL de imagen usando un servicio de placeholder
-        var encodedTitle = Uri.EscapeDataString(title);
-        var encodedAuthor = Uri.EscapeDataString(author);
-        return $"https://via.placeholder.com/300x400/0066cc/ffffff?text={encodedTitle}%0A{encodedAuthor}";
+        var seed = Math.Abs((title + author).GetHashCode()) % 1000;
+        var imageUrl = $"https://picsum.photos/seed/{seed}/300/400";
+        return imageUrl;
     }
 
-    private List<Review> GenerateReviews(Faker faker, double reviewCount, string locale)
+    private int GenerateLikes(Faker faker, double likes)
+    {
+        var fixedLikes = (int)Math.Floor(likes);
+        var fractionalPart = likes - fixedLikes;
+        var hasExtraLike = faker.Random.Double() < fractionalPart;
+        return fixedLikes + (hasExtraLike ? 1 : 0);
+    }
+
+    private List<Review> GenerateReviews(Faker faker, double reviewCount, string locale, double likesInfluence)
     {
         var reviews = new List<Review>();
-        
-        // Número fijo de reseñas basado en la parte entera
-        var fixedReviews = (int)Math.Floor(reviewCount);
-        
-        // Probabilidad de reseña adicional basada en la parte decimal
-        var fractionalPart = reviewCount - fixedReviews;
-        var hasExtraReview = faker.Random.Double() < fractionalPart;
-        
-        var totalReviews = fixedReviews + (hasExtraReview ? 1 : 0);
-        
+        var IntReviews = (int)Math.Floor(reviewCount);
+        var FracReviews = reviewCount - IntReviews;
+        var hasExtraReview = faker.Random.Double() < FracReviews;
+        var totalReviews = IntReviews + (hasExtraReview ? 1 : 0);
+        var minRating = Math.Max(1, (int)Math.Floor(likesInfluence));
+        var maxRating = 5;
         for (int i = 0; i < totalReviews; i++)
         {
             reviews.Add(new Review
             {
                 Text = GenerateReviewText(faker, locale),
                 ReviewerName = GenerateReviewerName(faker, locale),
-                Rating = faker.Random.Int(1, 5)
+                Rating = faker.Random.Int(minRating, maxRating)
             });
         }
-        
         return reviews;
     }
 
@@ -258,14 +222,6 @@ public class BookService
                 "Sehr empfehlenswert für alle Liebhaber dieses Genres.",
                 "Ein Meisterwerk, das noch lange in Erinnerung bleiben wird.",
                 "Brillant geschrieben und äußerst unterhaltsam."
-            }),
-            "ja" => faker.PickRandom(new[]
-            {
-                "最初のページから最後まで夢中になって読みました。",
-                "魅力的なキャラクターと興味深いストーリー。",
-                "このジャンルのファンには強くお勧めします。",
-                "長く記憶に残る傑作です。",
-                "見事に書かれ、非常に面白い作品。"
             }),
             "es" => faker.PickRandom(new[]
             {
@@ -291,7 +247,6 @@ public class BookService
         return locale switch
         {
             "de" => $"{faker.Name.FirstName()} {faker.Name.LastName()[0]}.",
-            "ja" => $"{faker.Name.LastName()}{faker.Name.FirstName()[0]}.",
             "es" => $"{faker.Name.FirstName()} {faker.Name.LastName()[0]}.",
             _ => $"{faker.Name.FirstName()} {faker.Name.LastName()[0]}."
         };

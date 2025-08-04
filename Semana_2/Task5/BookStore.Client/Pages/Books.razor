@@ -5,27 +5,23 @@
 @using System.Text.Json
 @using Microsoft.AspNetCore.Components.Web
 
-<PageTitle>BookStore - Fake Books Generator</PageTitle>
+<PageTitle>BookStore Splatt</PageTitle>
 
 <div class="container-fluid">
-    <h1 class="mb-4">📚 Fake Books Generator</h1>
+    <h1 class="mb-4">📚 BookStore Splatt</h1>
     
-    <!-- Controls Panel -->
     <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
-                <!-- Language/Region Selection -->
                 <div class="col-md-3">
                     <label for="locale" class="form-label">Language/Region:</label>
                     <select id="locale" class="form-select" @bind="selectedLocale" @bind:event="onchange">
                         <option value="en">English (US)</option>
                         <option value="de">Deutsch (Germany)</option>
-                        <option value="ja">日本語 (Japan)</option>
                         <option value="es">Español (Spanish)</option>
                     </select>
                 </div>
                 
-                <!-- Seed Configuration -->
                 <div class="col-md-3">
                     <label for="seed" class="form-label">Seed:</label>
                     <div class="input-group">
@@ -36,20 +32,18 @@
                     </div>
                 </div>
                 
-                <!-- Likes Slider -->
                 <div class="col-md-3">
                     <label for="likes" class="form-label">Likes: @likes.ToString("F1")</label>
-                    <input type="range" id="likes" class="form-range" min="0" max="10" step="0.1" @bind="likes" @bind:event="onchange" />
+                    <input type="range" id="likes" class="form-range" min="0.0" max="5.0" step="1.0" @bind="likes" @bind:event="oninput" />
                 </div>
                 
-                <!-- Reviews Count -->
                 <div class="col-md-3">
                     <label for="reviews" class="form-label">Reviews: @reviewCount.ToString("F1")</label>
-                    <input type="counter" id="reviews" class="form-range" min="0" max="10" step="0.1" @bind="reviewCount" @bind:event="onchange" />
+                    <input type="number" id="reviews" class="form-control" min="0" max="10" step="0.1" @bind="reviewCount" @bind:event="oninput" />
+                    
                 </div>
             </div>
             
-            <!-- Action Buttons -->
             <div class="row mt-3">
                 <div class="col-md-6">
                     <div class="btn-group" role="group">
@@ -241,22 +235,18 @@
 @code {
     private List<Book> books = new();
     private HashSet<int> expandedBooks = new();
-    
     private string selectedLocale = "en";
     private int currentSeed = 12345;
-    private double likes = 0.0;
-    private double reviewCount = 0.0;
-    
+    private decimal likes = 0.0m;
+    private decimal reviewCount = 0.0m;
     private string _previousLocale = "en";
     private int _previousSeed = 12345;
-    private double _previousLikes = 0.0;
-    private double _previousReviewCount = 0.0;
+    private decimal _previousLikes = 0.0m;
+    private decimal _previousReviewCount = 0.0m;
     private int currentPage = 1;
     private bool isLoading = false;
     private bool hasMoreData = true;
-    
     private ViewMode currentViewMode = ViewMode.Table;
-    
     private DotNetObjectReference<Books>? dotNetHelper;
     private IJSObjectReference? scrollModule;
     
@@ -275,20 +265,14 @@
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            await SetupInfiniteScroll();
-        }
-        
-        // Check if parameters have changed
+        if (firstRender) await SetupInfiniteScroll();
         if (_previousLocale != selectedLocale || _previousSeed != currentSeed || 
-            Math.Abs(_previousLikes - likes) > 0.01 || Math.Abs(_previousReviewCount - reviewCount) > 0.01)
+            Math.Abs(_previousLikes - likes) > 0.01m || Math.Abs(_previousReviewCount - reviewCount) > 0.01m)
         {
             _previousLocale = selectedLocale;
             _previousSeed = currentSeed;
             _previousLikes = likes;
             _previousReviewCount = reviewCount;
-            
             await LoadBooks(resetData: true);
         }
     }
@@ -331,11 +315,12 @@
                 hasMoreData = true;
             }
             
-            var baseUrl = "https://localhost:7251"; // URL correcta de la API
-            var url = $"{baseUrl}/api/books?locale={selectedLocale}&seed={currentSeed}&page={currentPage}&pageSize=20&likes={likes:F1}&reviewCount={reviewCount:F1}";
-            
+            var baseUrl = "https://localhost:7251";
+            //Configuration Global por decimal separator
+            var likesStr = likes.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+            var reviewCountStr = reviewCount.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+            var url = $"{baseUrl}/api/books?locale={selectedLocale}&seed={currentSeed}&page={currentPage}&pageSize=20&likes={likesStr}&reviewCount={reviewCountStr}";
             var response = await Http.GetFromJsonAsync<BookResponse>(url);
-            
             if (response != null && response.Books.Any())
             {
                 books.AddRange(response.Books);
@@ -391,9 +376,10 @@
         try
         {
             var pagesLoaded = (int)Math.Ceiling((double)books.Count / 20);
-            var baseUrl = "https://localhost:7251"; // URL correcta de la API
-            var url = $"{baseUrl}/api/books/export?locale={selectedLocale}&seed={currentSeed}&pages={pagesLoaded}&likes={likes:F1}&reviewCount={reviewCount:F1}";
-            
+            var baseUrl = "https://localhost:7251";
+            var likesStr = likes.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+            var reviewCountStr = reviewCount.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+            var url = $"{baseUrl}/api/books/export?locale={selectedLocale}&seed={currentSeed}&pages={pagesLoaded}&likes={likesStr}&reviewCount={reviewCountStr}";
             await JSRuntime.InvokeVoidAsync("open", url, "_blank");
         }
         catch (Exception ex)
